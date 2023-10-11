@@ -296,7 +296,7 @@ export const useChatStore = createPersistStore(
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
 
-        const userContent = fillTemplateWith(content, modelConfig);
+        const userContent = fillTemplateWith(content, modelConfig).replace(/\\|\n|\s/g, '');
         console.log("[User Input] after template: ", userContent);
 
         const userMessage: ChatMessage = createMessage({
@@ -309,7 +309,6 @@ export const useChatStore = createPersistStore(
           streaming: true,
           model: modelConfig.model,
         });
-
         // get recent messages
         const recentMessages = get().getMessagesWithMemory();
         const sendMessages = recentMessages.concat(userMessage);
@@ -319,8 +318,9 @@ export const useChatStore = createPersistStore(
         get().updateCurrentSession((session) => {
           const savedUserMessage = {
             ...userMessage,
-            content,
+            content
           };
+          botMessage.content = botMessage.content.replace(/\\|\n|\s/g, '')
           session.messages = session.messages.concat([
             savedUserMessage,
             botMessage,
@@ -328,56 +328,127 @@ export const useChatStore = createPersistStore(
         });
         console.log('消息列表：',sendMessages)
         // make request
-        api.llm.chat({
-          messages: sendMessages,
-          config: { ...modelConfig, stream: true },
-          onUpdate(message) {
-            botMessage.streaming = true;
-            if (message) {
-              botMessage.content = message;
-            }
-            get().updateCurrentSession((session) => {
-              session.messages = session.messages.concat();
-            });
-          },
-          onFinish(message) {
-            botMessage.streaming = false;
-            if (message) {
-              botMessage.content = message;
-              get().onNewMessage(botMessage);
-            }
-            ChatControllerPool.remove(session.id, botMessage.id);
-          },
-          onError(error) {
-            const isAborted = error.message.includes("aborted");
-            botMessage.content +=
-              "\n\n" +
-              prettyObject({
-                error: true,
-                message: error.message,
-              });
-            botMessage.streaming = false;
-            userMessage.isError = !isAborted;
-            botMessage.isError = !isAborted;
-            get().updateCurrentSession((session) => {
-              session.messages = session.messages.concat();
-            });
-            ChatControllerPool.remove(
-              session.id,
-              botMessage.id ?? messageIndex,
-            );
+        // api.llm.chat({
+        //   messages: sendMessages,
+        //   config: { ...modelConfig, stream: true },
+        //   onUpdate(message) {
+        //     botMessage.streaming = true;
+        //     if (message) {
+        //       botMessage.content = message;
+        //     }
+        //     get().updateCurrentSession((session) => {
+        //       session.messages = session.messages.concat();
+        //     });
+        //   },
+        //   onFinish(message) {
+        //     botMessage.streaming = false;
+        //     if (message) {
+        //       botMessage.content = message;
+        //       get().onNewMessage(botMessage);
+        //     }
+        //     ChatControllerPool.remove(session.id, botMessage.id);
+        //   },
+        //   onError(error) {
+        //     const isAborted = error.message.includes("aborted");
+        //     botMessage.content +=
+        //       "\n\n" +
+        //       prettyObject({
+        //         error: true,
+        //         message: error.message,
+        //       });
+        //     botMessage.streaming = false;
+        //     userMessage.isError = !isAborted;
+        //     botMessage.isError = !isAborted;
+        //     get().updateCurrentSession((session) => {
+        //       session.messages = session.messages.concat();
+        //     });
+        //     ChatControllerPool.remove(
+        //       session.id,
+        //       botMessage.id ?? messageIndex,
+        //     );
 
-            console.error("[Chat] failed ", error);
+        //     console.error("[Chat] failed ", error);
+        //   },
+        //   onController(controller) {
+        //     // collect controller for stop/retry
+        //     ChatControllerPool.addController(
+        //       session.id,
+        //       botMessage.id ?? messageIndex,
+        //       controller,
+        //     );
+        //   },
+        // });
+
+
+        //------------- 重写request，调用langchain服务接口-------------//
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 10 * 60 * 1000);
+
+        const fetchUrl = `http://127.0.0.1:5000/gpt`;
+        console.log(7979,sendMessages)
+        console.log(7979,JSON.stringify(sendMessages))
+        const fetchOptions: RequestInit = {
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store"
           },
-          onController(controller) {
-            // collect controller for stop/retry
-            ChatControllerPool.addController(
-              session.id,
-              botMessage.id ?? messageIndex,
-              controller,
-            );
-          },
-        });
+          method: 'POST',
+          body: JSON.stringify({messages:sendMessages}),
+          // to fix #2485: https://stackoverflow.com/questions/55920957/cloudflare-worker-typeerror-one-time-use-body
+          // redirect: "manual",
+          // @ts-ignore
+          // duplex: "half",
+          signal: controller.signal
+        };
+
+        // #1815 try to refuse gpt4 request
+        // if (DISABLE_GPT4 && req.body) {
+        //   try {
+        //     const clonedBody = await req.text();
+        //     fetchOptions.body = clonedBody;
+
+        //     const jsonBody = JSON.parse(clonedBody);
+
+        //     if ((jsonBody?.model ?? "").includes("gpt-4")) {
+        //       return NextResponse.json(
+        //         {
+        //           error: true,
+        //           message: "you are not allowed to use gpt-4 model",
+        //         },
+        //         {
+        //           status: 403,
+        //         },
+        //       );
+        //     }
+        //   } catch (e) {
+        //     console.error("[OpenAI] gpt4 filter", e);
+        //   }
+        // }
+        // try{
+          fetch(fetchUrl, fetchOptions).then(res=>{
+            // to prevent browser prompt for credentials
+            const newHeaders = new Headers(res.headers);
+            newHeaders.delete("www-authenticate");
+            // to disable nginx buffering
+            newHeaders.set("X-Accel-Buffering", "no");
+            // console.log(6767,res.text())
+            res.text().then(message=>{
+              console.log('[new botMessage]',message)
+              botMessage.content =decodeURIComponent(message);
+              get().onNewMessage(botMessage);
+            })
+            // return new Response(res.body, {
+            //   status: res.status,
+            //   statusText: res.statusText,
+            //   headers: newHeaders,
+            // });
+          }).then(res=>{
+            console.log(123123,res);
+          }).finally(()=>{
+            clearTimeout(timeoutId);
+          })
       },
 
       getMemoryPrompt() {

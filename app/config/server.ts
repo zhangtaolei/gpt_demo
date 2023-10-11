@@ -36,10 +36,9 @@ export const getServerSideConfig = () => {
       "[Server Config] you are importing a nodejs-only module outside of nodejs",
     );
   }
-
   const config = {
-    apiKey: process.env.OPENAI_API_KEY || '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',
-    code: process.env.CODE || '123',
+    apiKey: process.env.OPENAI_API_KEY,
+    code: process.env.CODE,
     codes: ACCESS_CODES,
     needCode: false,//true || ACCESS_CODES.size > 0,
     baseUrl: process.env.BASE_URL || 'https://api.openai.com',
@@ -49,6 +48,5 @@ export const getServerSideConfig = () => {
     disableGPT4: !!process.env.DISABLE_GPT4,
     hideBalanceQuery: !!process.env.HIDE_BALANCE_QUERY,
   };
-  console.log('3321',config)
   return config
 };

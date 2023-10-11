@@ -86,7 +86,7 @@ export async function requestOpenai(req: NextRequest) {
     newHeaders.delete("www-authenticate");
     // to disable nginx buffering
     newHeaders.set("X-Accel-Buffering", "no");
-
+    console.log(6767,res.body)
     return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,

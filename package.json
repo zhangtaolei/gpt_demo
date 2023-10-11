@@ -3,7 +3,7 @@
   "private": false,
   "license": "mit",
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env OPENAI_API_KEY=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 next dev",
     "build": "cross-env BUILD_MODE=standalone next build",
     "start": "next start",
     "lint": "next lint",

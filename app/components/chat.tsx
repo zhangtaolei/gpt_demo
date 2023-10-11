@@ -225,7 +225,6 @@ function useSubmitHandler() {
         !e.metaKey)
     );
   };
-
   return {
     submitKey,
     shouldSubmit,
@@ -756,15 +755,15 @@ function _Chat() {
   // check if should send message
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // if ArrowUp and no userInput, fill with last input
-    // if (
-    //   e.key === "ArrowUp" &&
-    //   userInput.length <= 0 &&
-    //   !(e.metaKey || e.altKey || e.ctrlKey)
-    // ) {
-    //   setUserInput(localStorage.getItem(LAST_INPUT_KEY) ?? "");
-    //   e.preventDefault();
-    //   return;
-    // }
+    if (
+      e.key === "ArrowUp" &&
+      userInput.length <= 0 &&
+      !(e.metaKey || e.altKey || e.ctrlKey)
+    ) {
+      setUserInput(localStorage.getItem(LAST_INPUT_KEY) ?? "");
+      e.preventDefault();
+      return;
+    }
     if (shouldSubmit(e) && promptHints.length === 0) {
       doSubmit(userInput);
       e.preventDefault();
