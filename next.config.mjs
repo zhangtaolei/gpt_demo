@@ -29,6 +29,7 @@ const nextConfig = {
   output: mode,
   images: {
     unoptimized: mode === "export",
+    domains: ['image.lizihang.com'],
   },
   experimental: {
     forceSwcTransforms: true,

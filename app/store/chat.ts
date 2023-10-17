@@ -326,7 +326,6 @@ export const useChatStore = createPersistStore(
             botMessage,
           ]);
         });
-        console.log('消息列表：',sendMessages)
         // make request
         // api.llm.chat({
         //   messages: sendMessages,
@@ -386,16 +385,26 @@ export const useChatStore = createPersistStore(
           controller.abort();
         }, 10 * 60 * 1000);
 
-        const fetchUrl = `http://127.0.0.1:5000/gpt`;
-        console.log(7979,sendMessages)
-        console.log(7979,JSON.stringify(sendMessages))
+        const fetchUrl = `http://127.0.0.1:5000/getReferenceInfo`;
+        let needBreak = false
+        let lastCustomerMessage = undefined
+        console.log('获取消息列表：',JSON.stringify(sendMessages))
+        while(!needBreak){
+          if(sendMessages.length === 0) needBreak = true
+          lastCustomerMessage = sendMessages.pop()
+          if(lastCustomerMessage?.role === 'user'){
+            needBreak = true
+          }
+        }
+        console.log('获取最后一条客户消息：',lastCustomerMessage)
+        if(!lastCustomerMessage) return false
         const fetchOptions: RequestInit = {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store"
           },
           method: 'POST',
-          body: JSON.stringify({messages:sendMessages}),
+          body: JSON.stringify({messages:lastCustomerMessage}),
           // to fix #2485: https://stackoverflow.com/questions/55920957/cloudflare-worker-typeerror-one-time-use-body
           // redirect: "manual",
           // @ts-ignore
@@ -444,8 +453,6 @@ export const useChatStore = createPersistStore(
             //   statusText: res.statusText,
             //   headers: newHeaders,
             // });
-          }).then(res=>{
-            console.log(123123,res);
           }).finally(()=>{
             clearTimeout(timeoutId);
           })

@@ -34,6 +34,7 @@ import AutoIcon from "../icons/auto.svg";
 import BottomIcon from "../icons/bottom.svg";
 import StopIcon from "../icons/pause.svg";
 import RobotIcon from "../icons/robot.svg";
+import Image from 'next/image';
 
 import {
   ChatMessage,
@@ -599,7 +600,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
 }
 
 function _Chat() {
-  type RenderMessage = ChatMessage & { preview?: boolean };
+  type RenderMessage = ChatMessage & { preview?: boolean,type?:string };
 
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
@@ -1121,6 +1122,15 @@ function _Chat() {
 
           const shouldShowClearContextDivider = i === clearContextIndex - 1;
 
+          let messageObj
+          let houseList = []
+          if(!message.isError){
+            try{
+              messageObj = JSON.parse(message.content)
+              houseList = messageObj.result.houseList.list.slice(0,3)
+            }catch(e){
+            }
+          }
           return (
             <Fragment key={message.id}>
               <div
@@ -1208,6 +1218,8 @@ function _Chat() {
                       {Locale.Chat.Typing}
                     </div>
                   )}
+                  
+                  {!messageObj || messageObj.type !== 'knowledge' ? (
                   <div className={styles["chat-message-item"]}>
                     <Markdown
                       content={message.content}
@@ -1226,6 +1238,88 @@ function _Chat() {
                       defaultShow={i >= messages.length - 6}
                     />
                   </div>
+                  ):(
+                    <div className={styles["chat-message-item"]}>
+                      <h4>智能推荐:</h4>
+                      <ul>
+                      {houseList.map((house:any) => {
+                        let floorInfo = ''
+                        if (house.houseType === '高档住宅' && house.floorType && house.totalFloors) {
+                          floorInfo = `${house.floorType}/${house.totalFloors}层`
+                        } else if (house.houseType.includes('别墅') && house.upFloors && house.downFloors) {
+                          floorInfo = `地上${house.upFloors}层/地下${house.downFloors}层`
+                        }
+                        let houseTags = []
+                        if (house.fiveYears === '102300000001') {
+                          houseTags.push('满五')
+                        }
+                        if (house.twoYears === '102300000001' && house.fiveYears !== '102300000001') {
+                          houseTags.push('满二')
+                        }
+                        if (house.isNewHouse === '102300000001') {
+                          houseTags.push('全新房')
+                        }
+                        if (house.isGarden === '102300000001') {
+                          houseTags.push('花园')
+                        }
+                        if (house.isTerrace === '102300000001') {
+                          houseTags.push('露台')
+                        }
+                        if (house.isFloorHeating === '102300000001') {
+                          houseTags.push('地暖')
+                        }
+                        if (house.stableTemperature === '102300000001') {
+                          houseTags.push('恒温恒湿')
+                        }
+                        if (house.isMingChef === '102300000001') {
+                          houseTags.push('明厨明卫')
+                        }
+                        if (house.isCourtyard === '102300000001') {
+                          houseTags.push('合院')
+                        }
+                        if (house.isSwimmingPool === '102300000001') {
+                          houseTags.push('带泳池')
+                        }
+                        if (house.isParkingSpace === '102300000001') {
+                          houseTags.push('带车位')
+                        }
+                        if (house.isCarport === '102300000001') {
+                          houseTags.push('带车库')
+                        }
+                        return (
+                          <>
+                            <li style={{fontWeight:'bolder'}}>{house.houseTitle}</li>
+                            <li>
+                              <Image src={house.titleImgUrl} alt={house.resblockName} width={300} height={200}/>
+                            </li>
+                            <li>
+                              <h3>
+                                { house.officialPrice || house.quotedPrice }{'万元'}
+                              </h3>
+                            </li>
+                            <li>
+                            {'>'} { house.rooms } · { house.buildArea }㎡ · { floorInfo }
+                            </li>
+                            <li>
+                            {'>'} { house.bizcircleName } · { house.resblockName } · { house.houseType }
+                            </li>
+                            <li>{'>'} {
+                                  houseTags.map((tag:any) => {
+                                    return (
+                                      <>
+                                        {tag}&nbsp;&nbsp;
+                                      </>
+                                    )
+                                  })
+                                }
+                            </li>
+                            <br/>
+                          </>
+                        )
+                      })}
+                      </ul>
+                    </div>
+                  )}
 
                   <div className={styles["chat-message-action-date"]}>
                     {isContext

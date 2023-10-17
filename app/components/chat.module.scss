@@ -381,6 +381,10 @@
   transition: all ease 0.3s;
 }
 
+.chat-message-item ul{
+  list-style-type: none;
+}
+
 .chat-message-action-date {
   font-size: 12px;
   opacity: 0.2;
